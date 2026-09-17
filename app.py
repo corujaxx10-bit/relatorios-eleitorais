@@ -10,7 +10,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Painel de Autoridades - GO", page_icon="🗳️", layout="centered")
+st.set_page_config(page_title="Relação de Autoridades Municipais", page_icon="🗳️", layout="centered")
 
 # --- CUSTOMIZAÇÃO DE DESIGN (TELA CLARA) ---
 st.markdown("""
@@ -41,8 +41,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- TÍTULOS E DESCRIÇÃO (ALTERADOS) ---
-st.title("🗳️ Painel de Autoridades Municipais - Goiás")
+# --- TÍTULOS E DESCRIÇÃO ---
+st.title("🗳️ Relação de autoridades municipais")
+st.markdown("*(Informações extraídas da base de dados do TSE referência eleições de 2024)*")
 st.markdown("Selecione o município desejado na lista abaixo para extrair a relação oficial de representantes e gerar automaticamente o documento formatado.")
 
 # Parâmetros Fixos
@@ -145,7 +146,6 @@ if municipios_go:
                     st.error("Não foi possível encontrar eleitos para esta cidade. Tente novamente.")
                 else:
                     doc = Document()
-                    # Mudei o título de dentro do Word também para ficar mais limpo
                     title = doc.add_heading(f'Autoridades Municipais de {cidade_escolhida.title()}', level=1)
                     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
