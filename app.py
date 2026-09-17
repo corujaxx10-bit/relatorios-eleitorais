@@ -12,31 +12,53 @@ from docx.oxml import OxmlElement
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Relação de Autoridades Municipais", page_icon="🗳️", layout="centered")
 
-# --- CUSTOMIZAÇÃO DE DESIGN (TELA CLARA) ---
+# --- CUSTOMIZAÇÃO DE DESIGN (TELA ESCURA MODERNA) ---
 st.markdown("""
 <style>
-    /* Muda a cor de fundo da tela inteira (Cinza bem clarinho) */
+    /* Cor de fundo principal (Escuro elegante) */
     [data-testid="stAppViewContainer"] {
-        background-color: #F4F6F9; 
+        background-color: #0E1117; 
     }
-    /* Deixa o topo invisível para não dar conflito de cor */
     [data-testid="stHeader"] {
         background-color: rgba(0,0,0,0);
     }
-    /* Força as letras a ficarem escuras para leitura fácil */
-    h1, h2, h3, p, span, label {
-        color: #2C3E50 !important;
+    
+    /* Título com cor de destaque (Azul Claro) */
+    h1 {
+        color: #4DB8FF !important;
+        font-weight: 700;
     }
-    /* Estiliza o botão para ficar azul escuro e mais bonito */
+    
+    /* Textos descritivos e Labels (Branco/Cinza super legível) */
+    .stMarkdown p, label {
+        color: #E0E6ED !important;
+        font-size: 16px;
+    }
+    
+    /* Estilo dos Botões (Azul com texto branco) */
     .stButton>button {
-        background-color: #1F618D;
-        color: white !important;
-        border-radius: 6px;
-        border: none;
-        padding: 10px 20px;
+        background-color: #1F618D !important;
+        border: 1px solid #2980B9 !important;
+        border-radius: 8px;
     }
+    
+    /* Força o texto dentro do botão a ficar branco puro */
+    .stButton>button * {
+        color: #FFFFFF !important;
+    }
+    
     .stButton>button:hover {
-        background-color: #154360;
+        background-color: #2980B9 !important;
+        border-color: #4DB8FF !important;
+    }
+    
+    /* Corrige a cor do texto na caixa de sucesso verde */
+    [data-testid="stAlert"] {
+        background-color: #0E3B21 !important;
+        border: 1px solid #145A32;
+    }
+    [data-testid="stAlert"] * {
+        color: #D1FAE5 !important;
     }
 </style>
 """, unsafe_allow_html=True)
