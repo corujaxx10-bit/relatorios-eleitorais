@@ -1,3 +1,5 @@
 streamlit
 curl_cffi
 python-docx
+reportlab
+Pillow
