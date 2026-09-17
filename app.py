@@ -4,8 +4,9 @@ import tempfile
 import base64
 from curl_cffi import requests
 from docx import Document
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -15,44 +16,32 @@ st.set_page_config(page_title="Relação de Autoridades Municipais", page_icon="
 # --- CUSTOMIZAÇÃO DE DESIGN (TELA ESCURA MODERNA) ---
 st.markdown("""
 <style>
-    /* Cor de fundo principal (Escuro elegante) */
     [data-testid="stAppViewContainer"] {
         background-color: #0E1117; 
     }
     [data-testid="stHeader"] {
         background-color: rgba(0,0,0,0);
     }
-    
-    /* Título com cor de destaque (Azul Claro) */
     h1 {
         color: #4DB8FF !important;
         font-weight: 700;
     }
-    
-    /* Textos descritivos e Labels (Branco/Cinza super legível) */
     .stMarkdown p, label {
         color: #E0E6ED !important;
         font-size: 16px;
     }
-    
-    /* Estilo dos Botões (Azul com texto branco) */
     .stButton>button {
         background-color: #1F618D !important;
         border: 1px solid #2980B9 !important;
         border-radius: 8px;
     }
-    
-    /* Força o texto dentro do botão a ficar branco puro */
     .stButton>button * {
         color: #FFFFFF !important;
     }
-    
     .stButton>button:hover {
         background-color: #2980B9 !important;
         border-color: #4DB8FF !important;
     }
-    
-    /* Corrige a cor do texto na caixa de sucesso verde */
     [data-testid="stAlert"] {
         background-color: #0E3B21 !important;
         border: 1px solid #145A32;
@@ -167,47 +156,105 @@ if municipios_go:
                 if not eleitos:
                     st.error("Não foi possível encontrar eleitos para esta cidade. Tente novamente.")
                 else:
+                    # GERAÇÃO DO WORD PROFISSIONAL
                     doc = Document()
-                    title = doc.add_heading(f'Autoridades Municipais de {cidade_escolhida.title()}', level=1)
-                    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    
+                    # Ajuste das Margens
+                    for section in doc.sections:
+                        section.top_margin = Inches(0.6)
+                        section.bottom_margin = Inches(0.6)
+                        section.left_margin = Inches(0.8)
+                        section.right_margin = Inches(0.8)
 
+                    # Cabeçalho do Documento
+                    title_p = doc.add_paragraph()
+                    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    title_run = title_p.add_run(f'RELAÇÃO DE AUTORIDADES MUNICIPAIS\n{cidade_escolhida.upper()} - GO')
+                    title_run.bold = True
+                    title_run.font.size = Pt(16)
+                    title_run.font.color.rgb = RGBColor(31, 73, 125) # Azul Escuro
+                    
+                    subtitle_p = doc.add_paragraph()
+                    subtitle_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    subtitle_run = subtitle_p.add_run('Gestão 2025-2028 | Dados extraídos do TSE')
+                    subtitle_run.font.size = Pt(10)
+                    subtitle_run.font.color.rgb = RGBColor(128, 128, 128) # Cinza
+                    
+                    doc.add_paragraph() # Espaço extra
+
+                    # Configuração da Tabela
                     table = doc.add_table(rows=1, cols=3)
                     table.style = 'Table Grid'
-                    table.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    table.autofit = False
 
+                    # Largura das Colunas
+                    widths = (Inches(1.2), Inches(3.8), Inches(1.5))
+                    for row in table.rows:
+                        for idx, width in enumerate(widths):
+                            row.cells[idx].width = width
+
+                    # Formatação da Linha de Cabeçalho
                     hdr_cells = table.rows[0].cells
-                    cabecalhos = ['Foto', 'Nome e Cargo', 'Partido']
-                    
+                    cabecalhos = ['FOTO', 'DADOS DO ELEITO', 'PARTIDO']
                     for i in range(3):
                         hdr_cells[i].text = cabecalhos[i]
-                        set_cell_background(hdr_cells[i], 'D9D9D9')
+                        set_cell_background(hdr_cells[i], '1F497D') # Fundo Azul Escuro
+                        hdr_cells[i].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                         for paragraph in hdr_cells[i].paragraphs:
                             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                            for run in paragraph.runs: run.font.bold = True
+                            for run in paragraph.runs: 
+                                run.font.bold = True
+                                run.font.color.rgb = RGBColor(255, 255, 255) # Texto Branco
 
-                    for v in eleitos:
+                    # Preenchimento das Linhas (com efeito Zebra)
+                    for index, v in enumerate(eleitos):
                         row_cells = table.add_row().cells
-                        cell_foto = row_cells[0]
-                        if v.get("foto_local") and os.path.exists(v.get("foto_local")):
-                            paragraph = cell_foto.paragraphs[0]
-                            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                            paragraph.add_run().add_picture(v["foto_local"], width=Inches(1.2))
-                        else:
-                            cell_foto.text = "Sem foto"
-                            cell_foto.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        
+                        # Mantém as larguras
+                        for idx, width in enumerate(widths):
+                            row_cells[idx].width = width
 
+                        # Cor de fundo (Branco par, Cinza ultra claro ímpar)
+                        bg_color = 'FFFFFF' if index % 2 == 0 else 'F8F9FA'
+                        for cell in row_cells:
+                            set_cell_background(cell, bg_color)
+                            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER # Centraliza no meio
+
+                        # Célula Foto
+                        cell_foto = row_cells[0]
+                        p_foto = cell_foto.paragraphs[0]
+                        p_foto.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        if v.get("foto_local") and os.path.exists(v.get("foto_local")):
+                            p_foto.add_run().add_picture(v["foto_local"], width=Inches(1.0))
+                        else:
+                            run_nofoto = p_foto.add_run("Sem foto")
+                            run_nofoto.font.color.rgb = RGBColor(160, 160, 160)
+
+                        # Célula Nome e Cargo
                         cell_nome = row_cells[1]
                         p_nome = cell_nome.paragraphs[0]
-                        p_nome.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        run_urna = p_nome.add_run(f'"{v["nome_urna"]}"\n')
+                        p_nome.paragraph_format.space_after = Pt(2)
+                        
+                        run_urna = p_nome.add_run(f'{v["nome_urna"].upper()}\n')
                         run_urna.font.bold = True
-                        p_nome.add_run(f'{v["nome_completo"]}\n')
-                        run_cargo = p_nome.add_run(v['cargo'])
+                        run_urna.font.size = Pt(11)
+                        
+                        run_comp = p_nome.add_run(f'{v["nome_completo"].title()}\n')
+                        run_comp.font.size = Pt(9)
+                        run_comp.font.color.rgb = RGBColor(89, 89, 89)
+                        
+                        run_cargo = p_nome.add_run(v['cargo'].upper())
+                        run_cargo.font.bold = True
                         run_cargo.font.size = Pt(9)
+                        run_cargo.font.color.rgb = RGBColor(31, 73, 125)
 
+                        # Célula Partido
                         cell_partido = row_cells[2]
-                        cell_partido.text = v['partido']
-                        cell_partido.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        p_partido = cell_partido.paragraphs[0]
+                        p_partido.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run_part = p_partido.add_run(v['partido'])
+                        run_part.font.bold = True
+                        run_part.font.size = Pt(11)
 
                     nome_arquivo = f'Autoridades_{cidade_escolhida.replace(" ", "_")}_GO.docx'
                     caminho_final = os.path.join(pasta_fotos, nome_arquivo)
