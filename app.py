@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import os
 import tempfile
 import base64
@@ -10,10 +10,40 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Relatórios Eleitorais - TSE", page_icon="🗳️", layout="centered")
+st.set_page_config(page_title="Painel de Autoridades - GO", page_icon="🗳️", layout="centered")
 
-st.title("🗳️ Painel de Relatórios - Goiás (2024)")
-st.markdown("Selecione um município para visualizar os eleitos e gerar o arquivo Word configurado.")
+# --- CUSTOMIZAÇÃO DE DESIGN (TELA CLARA) ---
+st.markdown("""
+<style>
+    /* Muda a cor de fundo da tela inteira (Cinza bem clarinho) */
+    [data-testid="stAppViewContainer"] {
+        background-color: #F4F6F9; 
+    }
+    /* Deixa o topo invisível para não dar conflito de cor */
+    [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0);
+    }
+    /* Força as letras a ficarem escuras para leitura fácil */
+    h1, h2, h3, p, span, label {
+        color: #2C3E50 !important;
+    }
+    /* Estiliza o botão para ficar azul escuro e mais bonito */
+    .stButton>button {
+        background-color: #1F618D;
+        color: white !important;
+        border-radius: 6px;
+        border: none;
+        padding: 10px 20px;
+    }
+    .stButton>button:hover {
+        background-color: #154360;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- TÍTULOS E DESCRIÇÃO (ALTERADOS) ---
+st.title("🗳️ Painel de Autoridades Municipais - Goiás")
+st.markdown("Selecione o município desejado na lista abaixo para extrair a relação oficial de representantes e gerar automaticamente o documento formatado.")
 
 # Parâmetros Fixos
 ANO = "2024"
@@ -48,7 +78,7 @@ if municipios_go:
         if st.button(f"🔍 Gerar Relatório de {cidade_escolhida}"):
             cod_municipio = municipios_go[cidade_escolhida]
             
-            with st.spinner(f"Buscando e processando dados oficiais do TSE para {cidade_escolhida}... Isso pode levar alguns segundos."):
+            with st.spinner(f"Buscando e processando dados para {cidade_escolhida}... Isso pode levar alguns segundos."):
                 cargos_para_buscar = [("11", "Prefeito"), ("13", "Vereador")]
                 
                 temp_dir = tempfile.TemporaryDirectory()
@@ -115,7 +145,8 @@ if municipios_go:
                     st.error("Não foi possível encontrar eleitos para esta cidade. Tente novamente.")
                 else:
                     doc = Document()
-                    title = doc.add_heading(f'Eleitos de {cidade_escolhida.title()} (Gestão 2025-2028)', level=1)
+                    # Mudei o título de dentro do Word também para ficar mais limpo
+                    title = doc.add_heading(f'Autoridades Municipais de {cidade_escolhida.title()}', level=1)
                     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
                     table = doc.add_table(rows=1, cols=3)
@@ -156,18 +187,18 @@ if municipios_go:
                         cell_partido.text = v['partido']
                         cell_partido.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-                    nome_arquivo = f'Eleitos_{cidade_escolhida.replace(" ", "_")}_GO.docx'
+                    nome_arquivo = f'Autoridades_{cidade_escolhida.replace(" ", "_")}_GO.docx'
                     caminho_final = os.path.join(pasta_fotos, nome_arquivo)
                     doc.save(caminho_final)
                     
-                    st.success("✅ Relatório finalizado com sucesso!")
+                    st.success("✅ Relatório gerado com sucesso!")
                     
                     with open(caminho_final, "rb") as file:
                         st.download_button(
-                            label=f"⬇️ Fazer Download de: {nome_arquivo}",
+                            label=f"⬇️ Baixar Relatório de {cidade_escolhida.title()}",
                             data=file,
                             file_name=nome_arquivo,
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         )
 else:
-    st.error("Falha ao se conectar com o TSE para buscar as cidades.")
+    st.error("Falha ao se conectar com os servidores para buscar as cidades.")
