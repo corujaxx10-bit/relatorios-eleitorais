@@ -84,9 +84,8 @@ if municipios_go:
                 pasta_fotos = temp_dir.name
                 eleitos = []
                 
-                # RASPAGEM DE DADOS TSE (Corrigido para aceitar o 2º Turno)
+                # RASPAGEM DE DADOS TSE (Corrigido para 2º Turno e Partido do Vice)
                 for cod_cargo, nome_cargo in cargos_para_buscar:
-                    # Para Prefeito (11), tenta o 1º turno; se não achar vencedor, tenta o ID do 2º turno (2046202024).
                     ids_turno = [ID_ELEICAO, "2046202024"] if cod_cargo == "11" else [ID_ELEICAO]
                     cargo_concluido = False
                     
@@ -100,7 +99,6 @@ if municipios_go:
                             if resp.status_code == 200:
                                 for cand in resp.json().get("candidatos", []):
                                     situacao = cand.get("descricaoTotalizacao", "") or ""
-                                    # O startswith garante que ele capte 'Eleito', 'Eleito no 1º turno', 'Eleito por média', etc.
                                     if situacao.startswith("Eleito"):
                                         cargo_concluido = True
                                         cand_id = cand["id"]
@@ -132,8 +130,16 @@ if municipios_go:
                                                 for v in detalhe.get("vices", []):
                                                     nome_v_urna = v.get("nomeUrna", v.get("nm_URNA", "Sem Nome"))
                                                     nome_v_completo = v.get("nomeCompleto", v.get("nm_CANDIDATO", ""))
-                                                    partido_v = v.get("partido", "")
-                                                    if isinstance(partido_v, dict): partido_v = partido_v.get("sigla", "")
+                                                    
+                                                    # Lógica Corrigida: Busca o partido do Vice nos formatos diferentes do TSE
+                                                    partido_v = v.get("sg_PARTIDO", "")
+                                                    if not partido_v:
+                                                        pv = v.get("partido", "")
+                                                        if isinstance(pv, dict):
+                                                            partido_v = pv.get("sigla", "")
+                                                        else:
+                                                            partido_v = pv
+
                                                     foto_v_url = v.get("urlFoto") or v.get("fotoUrl")
                                                     caminho_foto_v = os.path.join(pasta_fotos, f"vice_{cand_id}.jpg")
                                                     
