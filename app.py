@@ -84,61 +84,73 @@ if municipios_go:
                 pasta_fotos = temp_dir.name
                 eleitos = []
                 
-                # RASPAGEM DE DADOS TSE
+                # RASPAGEM DE DADOS TSE (Corrigido para aceitar o 2º Turno)
                 for cod_cargo, nome_cargo in cargos_para_buscar:
-                    url_lista = f"https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/listar/{ANO}/{cod_municipio}/{ID_ELEICAO}/{cod_cargo}/candidatos"
-                    try:
-                        resp = requests.get(url_lista, impersonate="chrome120", timeout=30)
-                        if resp.status_code == 200:
-                            for cand in resp.json().get("candidatos", []):
-                                if "Eleito" in cand.get("descricaoTotalizacao", ""):
-                                    cand_id = cand["id"]
-                                    url_detalhe = f"https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/buscar/{ANO}/{cod_municipio}/{ID_ELEICAO}/candidato/{cand_id}"
-                                    try:
-                                        detalhe_resp = requests.get(url_detalhe, impersonate="chrome120", timeout=20)
-                                        detalhe = detalhe_resp.json()
+                    # Para Prefeito (11), tenta o 1º turno; se não achar vencedor, tenta o ID do 2º turno (2046202024).
+                    ids_turno = [ID_ELEICAO, "2046202024"] if cod_cargo == "11" else [ID_ELEICAO]
+                    cargo_concluido = False
+                    
+                    for id_turno in ids_turno:
+                        if cargo_concluido:
+                            break
+                            
+                        url_lista = f"https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/listar/{ANO}/{cod_municipio}/{id_turno}/{cod_cargo}/candidatos"
+                        try:
+                            resp = requests.get(url_lista, impersonate="chrome120", timeout=30)
+                            if resp.status_code == 200:
+                                for cand in resp.json().get("candidatos", []):
+                                    situacao = cand.get("descricaoTotalizacao", "") or ""
+                                    # O startswith garante que ele capte 'Eleito', 'Eleito no 1º turno', 'Eleito por média', etc.
+                                    if situacao.startswith("Eleito"):
+                                        cargo_concluido = True
+                                        cand_id = cand["id"]
+                                        url_detalhe = f"https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/buscar/{ANO}/{cod_municipio}/{id_turno}/candidato/{cand_id}"
                                         
-                                        nome_urna = detalhe.get("nomeUrna", cand.get("nomeUrna", "Sem Nome"))
-                                        nome_completo = detalhe.get("nomeCompleto", cand.get("nomeCompleto", ""))
-                                        partido = detalhe.get("partido", {}).get("sigla", cand.get("partido", {}).get("sigla", ""))
-                                        foto_url = detalhe.get("fotoUrl")
-                                        caminho_foto = os.path.join(pasta_fotos, f"{cand_id}.jpg")
-                                        
-                                        if foto_url:
-                                            img_resp = requests.get(foto_url, impersonate="chrome120", timeout=20)
-                                            if img_resp.status_code == 200:
-                                                with open(caminho_foto, "wb") as f:
-                                                    f.write(img_resp.content)
+                                        try:
+                                            detalhe_resp = requests.get(url_detalhe, impersonate="chrome120", timeout=20)
+                                            detalhe = detalhe_resp.json()
+                                            
+                                            nome_urna = detalhe.get("nomeUrna", cand.get("nomeUrna", "Sem Nome"))
+                                            nome_completo = detalhe.get("nomeCompleto", cand.get("nomeCompleto", ""))
+                                            partido = detalhe.get("partido", {}).get("sigla", cand.get("partido", {}).get("sigla", ""))
+                                            foto_url = detalhe.get("fotoUrl")
+                                            caminho_foto = os.path.join(pasta_fotos, f"{cand_id}.jpg")
+                                            
+                                            if foto_url:
+                                                img_resp = requests.get(foto_url, impersonate="chrome120", timeout=20)
+                                                if img_resp.status_code == 200:
+                                                    with open(caminho_foto, "wb") as f:
+                                                        f.write(img_resp.content)
+                                                        
+                                            eleitos.append({
+                                                "nome_urna": nome_urna, "nome_completo": nome_completo,
+                                                "cargo": nome_cargo, "partido": partido,
+                                                "foto_local": caminho_foto if os.path.exists(caminho_foto) else None
+                                            })
+                                            
+                                            if cod_cargo == "11":
+                                                for v in detalhe.get("vices", []):
+                                                    nome_v_urna = v.get("nomeUrna", v.get("nm_URNA", "Sem Nome"))
+                                                    nome_v_completo = v.get("nomeCompleto", v.get("nm_CANDIDATO", ""))
+                                                    partido_v = v.get("partido", "")
+                                                    if isinstance(partido_v, dict): partido_v = partido_v.get("sigla", "")
+                                                    foto_v_url = v.get("urlFoto") or v.get("fotoUrl")
+                                                    caminho_foto_v = os.path.join(pasta_fotos, f"vice_{cand_id}.jpg")
                                                     
-                                        eleitos.append({
-                                            "nome_urna": nome_urna, "nome_completo": nome_completo,
-                                            "cargo": nome_cargo, "partido": partido,
-                                            "foto_local": caminho_foto if os.path.exists(caminho_foto) else None
-                                        })
-                                        
-                                        if cod_cargo == "11":
-                                            for v in detalhe.get("vices", []):
-                                                nome_v_urna = v.get("nomeUrna", v.get("nm_URNA", "Sem Nome"))
-                                                nome_v_completo = v.get("nomeCompleto", v.get("nm_CANDIDATO", ""))
-                                                partido_v = v.get("partido", "")
-                                                if isinstance(partido_v, dict): partido_v = partido_v.get("sigla", "")
-                                                foto_v_url = v.get("urlFoto") or v.get("fotoUrl")
-                                                caminho_foto_v = os.path.join(pasta_fotos, f"vice_{cand_id}.jpg")
-                                                
-                                                if foto_v_url:
-                                                    try:
-                                                        img_resp_v = requests.get(foto_v_url, impersonate="chrome120", timeout=20)
-                                                        if img_resp_v.status_code == 200:
-                                                            with open(caminho_foto_v, "wb") as f:
-                                                                f.write(img_resp_v.content)
-                                                    except: pass
-                                                eleitos.append({
-                                                    "nome_urna": nome_v_urna, "nome_completo": nome_v_completo,
-                                                    "cargo": "Vice-Prefeito", "partido": partido_v,
-                                                    "foto_local": caminho_foto_v if os.path.exists(caminho_foto_v) else None
-                                                })
-                                    except: pass
-                    except: pass
+                                                    if foto_v_url:
+                                                        try:
+                                                            img_resp_v = requests.get(foto_v_url, impersonate="chrome120", timeout=20)
+                                                            if img_resp_v.status_code == 200:
+                                                                with open(caminho_foto_v, "wb") as f:
+                                                                    f.write(img_resp_v.content)
+                                                        except: pass
+                                                    eleitos.append({
+                                                        "nome_urna": nome_v_urna, "nome_completo": nome_v_completo,
+                                                        "cargo": "Vice-Prefeito", "partido": partido_v,
+                                                        "foto_local": caminho_foto_v if os.path.exists(caminho_foto_v) else None
+                                                    })
+                                        except: pass
+                        except: pass
 
                 if not eleitos:
                     st.error("Não foi possível encontrar eleitos para esta cidade. Tente novamente.")
